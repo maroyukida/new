@@ -11,7 +11,7 @@ import argparse
 import json
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 HEADER_EXCLUDE = {
     ":authority",
@@ -70,6 +70,41 @@ def extract_cookie(entry: dict) -> str:
     return "; ".join(cookie_pairs)
 
 
+def extract_session_from_har(
+    path: Path,
+    pattern: str = DEFAULT_PATTERN,
+    index: int = 0,
+) -> Tuple[Dict[str, str], str]:
+    """Return the headers and cookie string for the matching HAR entry.
+
+    Parameters
+    ----------
+    path:
+        HAR file exported from the browser.
+    pattern:
+        Regular expression used to locate the Yahoo realtime API request.
+    index:
+        If multiple entries match, choose the Nth item (default: 0).
+    """
+
+    har = load_har(path)
+    compiled = re.compile(pattern)
+    matches = list(iter_matching_entries(har, compiled))
+
+    if not matches:
+        raise ValueError(
+            "No HAR entries matched the given pattern. Export the pagination/autoscroll request and try again."
+        )
+
+    if index < 0 or index >= len(matches):
+        raise ValueError(f"index {index} is out of range (found {len(matches)} matches)")
+
+    entry = matches[index]
+    headers = extract_headers(entry)
+    cookie_string = extract_cookie(entry)
+    return headers, cookie_string
+
+
 def main(argv: Optional[Iterable[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Extract Yahoo realtime search session data from a HAR file."
@@ -99,24 +134,11 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    har = load_har(args.har)
-    pattern = re.compile(args.pattern)
-    matches = list(iter_matching_entries(har, pattern))
-
-    if not matches:
-        parser.error(
-            "No HAR entries matched the given pattern. Ensure you exported the pagination/autoscroll request."
-        )
+    try:
+        headers, cookie_string = extract_session_from_har(args.har, args.pattern, args.index)
+    except ValueError as exc:
+        parser.error(str(exc))
         return 2
-
-    index = args.index
-    if index < 0 or index >= len(matches):
-        parser.error(f"--index {index} is out of range (found {len(matches)} matches)")
-        return 2
-
-    entry = matches[index]
-    headers = extract_headers(entry)
-    cookie_string = extract_cookie(entry)
 
     if args.headers_json:
         args.headers_json.write_text(json.dumps(headers, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
