@@ -30,3 +30,17 @@ links from Yahoo! JAPAN's realtime search results.
 
 You can supply additional headers through `--headers headers.json` (a JSON file
 with a simple key-value mapping) or a raw cookie string via `--cookies`.
+
+### Automatically derive browser headers and cookies
+
+Export a HAR file from your browser (Network tab → Save all as HAR) while the
+realtime search page is open and run:
+
+```bash
+python har_session_extractor.py session.har --headers-json headers.json --print-cookie
+```
+
+The helper will locate Yahoo realtime API requests in the HAR, write a headers
+JSON file compatible with `--headers`, and print the cookie string for
+`--cookies` or the `YAHOO_COOKIE` environment variable. Use `--index` if multiple
+matching requests exist, or `--pattern` to target a different endpoint.
