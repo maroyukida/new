@@ -45,6 +45,15 @@ python scrape_gofile_links.py --pages 2 --batch-size 20 --output links.txt
 You can supply additional headers through `--headers headers.json` (a JSON file
 with a simple key-value mapping) or a raw cookie string via `--cookies`.
 
+> ⚠️ **Yahoo may block raw HTTP clients.**
+> 
+> The realtime endpoints frequently enforce additional bot-detection checks.
+> When that happens, the CLI will return HTTP 401/403/429 errors even if the
+> parameters are correct. Supplying fresh browser cookies and headers (via the
+> HAR helper below) usually helps, but in some cases Yahoo refuses the requests
+> entirely. When this occurs you must fall back to an automated browser (for
+> example Playwright) or try again later with a different network environment.
+
 ### Automatically derive browser headers and cookies
 
 Export a HAR file from your browser (Network tab → Save all as HAR) while the

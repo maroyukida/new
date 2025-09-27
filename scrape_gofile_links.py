@@ -242,7 +242,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         links = fetch_links(client, args.query, args.pages, args.batch_size, args.relevance)
     except requests.HTTPError as exc:
-        parser.error(f"Request failed: {exc}")
+        status = getattr(exc.response, "status_code", None)
+        if status in {401, 403}:
+            parser.error(
+                (
+                    "Request failed with an authorization error ({status}). Yahoo may be rejecting raw HTTP "
+                    "clients—refresh your cookies/headers via har_session_extractor.py or switch to "
+                    "a browser automation workflow."
+                ).format(status=status)
+            )
+        elif status == 429:
+            parser.error(
+                "Yahoo returned HTTP 429 (rate limited). Reduce --pages, wait a bit, or try a "
+                "different network."
+            )
+        else:
+            parser.error(f"Request failed: {exc}")
         return 2
     except requests.exceptions.ProxyError as exc:
         parser.error(
